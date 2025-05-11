@@ -1,17 +1,18 @@
-# WAV Terminal Waveform Visualizer
+```
+ _____  _____  _____ 
+|  ___||  ___||_   _|
+| |_   | |_     | |    Created By: Max Warren
+|_|    |_|      |_|
+```
 
-This C program reads a 16-bit or 24-bit PCM WAV audio file and visualizes its waveform in the terminal using ASCII characters.
-
----
+A compact C program to render WAV audio as a live ASCII frequency spectrum directly from your terminal
 
 ## Requirements
+- GCC or Clang
+- ANSI-compatible terminal
 
-- C compiler (e.g., GCC)
-- Terminal that supports basic ASCII output
-
----
-
-## Compilation
-
+## Build & Run
 ```bash
-gcc -o fft fft.c
+gcc -O2 -o fft fft.c -lm
+
+./fft 1.wav
