@@ -13,6 +13,6 @@ A compact C program to render WAV audio as a live ASCII frequency spectrum direc
 
 ## Build & Run
 ```bash
-gcc -O2 -o fft fft.c -lm
+gcc -O2 -o -lm fft fft.c
 
 ./fft 1.wav
