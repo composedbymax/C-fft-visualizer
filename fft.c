@@ -8,7 +8,7 @@
 #define HEIGHT       20
 #define FFT_SIZE     1024
 #define HOP_SIZE     (FFT_SIZE/2)
-static const char *PALETTE = " .:-=+*#%@";
+static const char *PALETTE = "-=+z0XW#";
 double window[FFT_SIZE];
 static char grid[HEIGHT][WIDTH+1];
 static uint16_t read_le16(const uint8_t *b) { return b[0] | (b[1] << 8); }
@@ -93,6 +93,8 @@ int main(int argc, char **argv) {
     init_grid();
     printf("\x1b[2J");
     printf("\x1b[?25l");
+    double prev_sample = 0.0;
+    const double pre_emph_alpha = 0.95;
     size_t framesRead = 0;
     while (framesRead < totalFrames) {
         size_t toRead = HOP_SIZE;
@@ -112,7 +114,10 @@ int main(int argc, char **argv) {
                         : read_le24(ptr);
                 sample += (double)s;
             }
-            real[i] = (sample / numCh) * window[i];
+            double mono = (sample / numCh);
+            double emph = mono - pre_emph_alpha * prev_sample;
+            prev_sample = mono;
+            real[i] = emph * window[i];
             imag[i] = 0.0;
         }
         fft(real, imag, FFT_SIZE);
@@ -121,18 +126,24 @@ int main(int argc, char **argv) {
             mags[i] = sqrt(real[i]*real[i] + imag[i]*imag[i]);
             if (mags[i] > maxm) maxm = mags[i];
         }
+        for (int i = 0; i < FFT_SIZE/2; i++) {
+            double norm_bin = (double)i/(FFT_SIZE/2);
+            double boost = pow(norm_bin, 0.5);
+            double val = mags[i] / maxm;
+            val = pow(val, 0.3);
+            mags[i] = val * (1.0 + boost * 2.0);
+        }
         for (int r = 0; r < HEIGHT; r++) {
             memmove(grid[r], grid[r]+1, WIDTH-1);
             grid[r][WIDTH-1] = ' ';
         }
         for (int i = 0; i < FFT_SIZE/2; i++) {
-            double freq_bin = (double)i;
-            double lf = log10(1 + 9 * freq_bin/(FFT_SIZE/2));
+            double frac = (double)i/(FFT_SIZE/2);
+            double lf = pow(frac, 0.4);
             int row = HEIGHT - 1 - (int)(lf * (HEIGHT-1));
             if (row < 0) row = 0;
             if (row >= HEIGHT) row = HEIGHT-1;
-            double norm = mags[i] / maxm;
-            int idx = (int)(norm * (strlen(PALETTE)-1));
+            int idx = (int)(mags[i] * (strlen(PALETTE)-1));
             if (idx < 0) idx = 0;
             if (idx >= (int)strlen(PALETTE)) idx = strlen(PALETTE)-1;
             grid[row][WIDTH-1] = PALETTE[idx];
