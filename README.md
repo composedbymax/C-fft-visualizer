@@ -5,7 +5,7 @@
 |_|    |_|      |_|
 ```
 
-A compact C program to render WAV audio as a live ASCII frequency spectrum directly from your terminal
+A compact C program to render WAV audio as a live ASCII Frequency STFT directly from your terminal
 
 ## Requirements
 - GCC or Clang

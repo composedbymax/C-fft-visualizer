@@ -8,7 +8,7 @@
 #define HEIGHT       20
 #define FFT_SIZE     1024
 #define HOP_SIZE     (FFT_SIZE/2)
-static const char *PALETTE = "-=+z0XW#";
+static const char *PALETTE = "-=+z#&";
 double window[FFT_SIZE];
 static char grid[HEIGHT][WIDTH+1];
 static uint16_t read_le16(const uint8_t *b) { return b[0] | (b[1] << 8); }
