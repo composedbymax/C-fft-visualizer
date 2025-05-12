@@ -9,10 +9,12 @@
 #define FFT_SIZE     1024
 #define HOP_SIZE     (FFT_SIZE/2)
 #define LABEL_WIDTH  12
+#define TIME_WIDTH   25
 static const char *PALETTE = "-=+z#&";
 double window[FFT_SIZE];
 static char grid[HEIGHT][WIDTH+1];
 static char freq_labels[HEIGHT][LABEL_WIDTH+1];
+static char time_display[TIME_WIDTH+1];
 static uint16_t read_le16(const uint8_t *b) { return b[0] | (b[1] << 8); }
 static uint32_t read_le32(const uint8_t *b) { return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24); }
 static int32_t  read_le24(const uint8_t *b) { int32_t v = b[0] | (b[1]<<8) | (b[2]<<16); if (v & 0x800000) v |= ~0xFFFFFF; return v; }
@@ -65,6 +67,17 @@ void init_freq_labels(uint32_t sampleRate) {
         strncpy(freq_labels[r], label, LABEL_WIDTH);
     }
 }
+void format_time(char *buffer, double seconds) {
+    int total_seconds = (int)seconds;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+    int secs = total_seconds % 60;
+    if (hours > 0) {
+        snprintf(buffer, TIME_WIDTH, "%02d:%02d:%02d", hours, minutes, secs);
+    } else {
+        snprintf(buffer, TIME_WIDTH, "%02d:%02d", minutes, secs);
+    }
+}
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <input.wav>\n", argv[0]);
@@ -106,6 +119,9 @@ int main(int argc, char **argv) {
     uint32_t bytesPerSample = bits/8;
     uint32_t frameBytes     = bytesPerSample * numCh;
     size_t   totalFrames    = dataBytes / frameBytes;
+    double totalDuration = (double)totalFrames / sampleRate;
+    char totalTimeStr[TIME_WIDTH];
+    format_time(totalTimeStr, totalDuration);
     uint8_t  circular[FFT_SIZE * frameBytes];
     double   real[FFT_SIZE], imag[FFT_SIZE], mags[FFT_SIZE/2];
     memset(circular, 0, sizeof(circular));
@@ -118,12 +134,17 @@ int main(int argc, char **argv) {
     double prev_sample = 0.0;
     const double pre_emph_alpha = 0.95;
     size_t framesRead = 0;
+    double currentTime = 0.0;
     while (framesRead < totalFrames) {
         size_t toRead = HOP_SIZE;
         size_t got = fread(circular + buffill, frameBytes, toRead, fp);
         if (!got) break;
         buffill += got * frameBytes;
         framesRead += got;
+        currentTime = (double)framesRead / sampleRate;
+        char currentTimeStr[TIME_WIDTH];
+        format_time(currentTimeStr, currentTime);
+        snprintf(time_display, TIME_WIDTH, "%s / %s", currentTimeStr, totalTimeStr);
         if (buffill < FFT_SIZE * frameBytes) continue;
         for (int i = 0; i < FFT_SIZE; i++) {
             double sample = 0.0;
@@ -171,9 +192,17 @@ int main(int argc, char **argv) {
             grid[row][WIDTH-1] = PALETTE[idx];
         }
         printf("\x1b[H");
+        printf("Time: %s\n", time_display);
         for (int r = 0; r < HEIGHT; r++) {
             printf("%s | %s\n", grid[r], freq_labels[r]);
         }
+        int progressWidth = WIDTH;
+        int progress = (int)((currentTime / totalDuration) * progressWidth);
+        printf("[");
+        for (int i = 0; i < progressWidth; i++) {
+            printf(i < progress ? "=" : " ");
+        }
+        printf("]\n");
         fflush(stdout);
         memmove(circular, circular + HOP_SIZE*frameBytes,
                 buffill - HOP_SIZE*frameBytes);
