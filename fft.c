@@ -8,9 +8,11 @@
 #define HEIGHT       20
 #define FFT_SIZE     1024
 #define HOP_SIZE     (FFT_SIZE/2)
+#define LABEL_WIDTH  12
 static const char *PALETTE = "-=+z#&";
 double window[FFT_SIZE];
 static char grid[HEIGHT][WIDTH+1];
+static char freq_labels[HEIGHT][LABEL_WIDTH+1];
 static uint16_t read_le16(const uint8_t *b) { return b[0] | (b[1] << 8); }
 static uint32_t read_le32(const uint8_t *b) { return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24); }
 static int32_t  read_le24(const uint8_t *b) { int32_t v = b[0] | (b[1]<<8) | (b[2]<<16); if (v & 0x800000) v |= ~0xFFFFFF; return v; }
@@ -42,6 +44,25 @@ void init_grid(void) {
     for (int r = 0; r < HEIGHT; r++) {
         memset(grid[r], ' ', WIDTH);
         grid[r][WIDTH] = '\0';
+    }
+}
+void init_freq_labels(uint32_t sampleRate) {
+    for (int r = 0; r < HEIGHT; r++) {
+        memset(freq_labels[r], ' ', LABEL_WIDTH);
+        freq_labels[r][LABEL_WIDTH] = '\0';
+    }
+    for (int r = 0; r < HEIGHT; r++) {
+        double frac = (double)(HEIGHT - 1 - r) / (HEIGHT - 1);
+        double logFrac = pow(frac, 1/0.4);
+        double freq = logFrac * sampleRate / 2;
+        char label[LABEL_WIDTH];
+        if (freq < 1000) {
+            snprintf(label, LABEL_WIDTH, " %5.0f Hz ", freq);
+        } else {
+            snprintf(label, LABEL_WIDTH, " %5.1f kHz", freq/1000);
+        }
+        
+        strncpy(freq_labels[r], label, LABEL_WIDTH);
     }
 }
 int main(int argc, char **argv) {
@@ -91,6 +112,7 @@ int main(int argc, char **argv) {
     size_t buffill = 0;
     make_hann_window();
     init_grid();
+    init_freq_labels(sampleRate);
     printf("\x1b[2J");
     printf("\x1b[?25l");
     double prev_sample = 0.0;
@@ -149,7 +171,9 @@ int main(int argc, char **argv) {
             grid[row][WIDTH-1] = PALETTE[idx];
         }
         printf("\x1b[H");
-        for (int r = 0; r < HEIGHT; r++) puts(grid[r]);
+        for (int r = 0; r < HEIGHT; r++) {
+            printf("%s | %s\n", grid[r], freq_labels[r]);
+        }
         fflush(stdout);
         memmove(circular, circular + HOP_SIZE*frameBytes,
                 buffill - HOP_SIZE*frameBytes);
