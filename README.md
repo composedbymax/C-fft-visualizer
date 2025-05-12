@@ -15,4 +15,8 @@ A compact C program to render WAV audio as a live ASCII Frequency STFT directly 
 ```bash
 gcc -O2 -o fft fft.c -lm
 
+
 ./fft 1.wav
+```
+
+![Demo Video](docs/demo.gif)
